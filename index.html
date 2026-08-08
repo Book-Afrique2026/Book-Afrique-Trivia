@@ -725,4 +725,42 @@
         const div = document.createElement('div');
         div.className = 'board-row me';
         const secs = (row.timeMs/1000).toFixed(1);
-        div.innerHTML = `<span class="board-rank">#${myRank+1}</span><span class="board-name">${escapeHtml(row.name)}</span
+        div.innerHTML = `<span class="board-rank">#${myRank+1}</span><span class="board-name">${escapeHtml(row.name)}</span><span class="board-score">${row.score}/50 · ${secs}s</span>`;
+        boardList.appendChild(div);
+      }
+    }
+  }
+
+  function viewBoardOnly(){
+    showScreen('results');
+    document.getElementById('resultScoreBlock').classList.add('hidden');
+    document.getElementById('retryBtn').textContent = 'Back';
+    if(!firebaseReady || !boardRef){
+      document.getElementById('boardList').innerHTML = '<div class="loader">leaderboard unreachable — check your connection and try again</div>';
+      return;
+    }
+    document.getElementById('boardList').innerHTML = '<div class="loader">connecting to leaderboard…</div>';
+    myEntryKey = null;
+    attachLiveBoard();
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  document.getElementById('viewBoardBtn').addEventListener('click', viewBoardOnly);
+  document.getElementById('retryBtn').addEventListener('click', () => {
+    showScreen('landing');
+  });
+
+  if(window.location.hash === '#leaderboard' || window.location.hash === '#board'){
+    viewBoardOnly();
+  }
+
+})();
+</script>
+
+</body>
+</html>
