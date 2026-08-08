@@ -380,24 +380,50 @@
     messagingSenderId: "235343492456",
     appId: "1:235343492456:web:ed7c3270a920cb831d52dd"
   };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
 
-  // Separate path from the Reddit Refugees test quizzes so leaderboards never mix.
+  // Guard Firebase setup so a slow/dropped connection (Firebase library not yet
+  // loaded, or unreachable) can't take down the rest of the page — the name/email
+  // form and quiz have nothing to do with Firebase and should still work.
+  let db = null;
+  let boardRef = null;
+  let firebaseReady = false;
   const BOARD_PATH = 'leaderboards/bookafrique-jollof-round1';
-  const boardRef = db.ref(BOARD_PATH);
 
   const connDot = document.getElementById('connDot');
   const connText = document.getElementById('connText');
-  db.ref('.info/connected').on('value', (snap) => {
-    if(snap.val() === true){
-      connDot.className = 'conn-dot ok';
-      connText.textContent = 'leaderboard connected';
-    } else {
-      connDot.className = 'conn-dot bad';
-      connText.textContent = 'connecting…';
+
+  try {
+    if(typeof firebase === 'undefined'){
+      throw new Error('Firebase library did not load');
     }
-  });
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    boardRef = db.ref(BOARD_PATH);
+    firebaseReady = true;
+
+    db.ref('.info/connected').on('value', (snap) => {
+      if(snap.val() === true){
+        connDot.className = 'conn-dot ok';
+        connText.textContent = 'leaderboard connected';
+      } else {
+        connDot.className = 'conn-dot bad';
+        connText.textContent = 'connecting…';
+      }
+    });
+  } catch(err){
+    connDot.className = 'conn-dot bad';
+    connText.textContent = 'leaderboard unavailable — check your connection';
+  }
+
+  // If the connection check hangs (very slow network) rather than failing outright,
+  // don't leave the person staring at "connecting…" forever.
+  setTimeout(() => {
+    if(!firebaseReady || connText.textContent === 'connecting…'){
+      if(connText.textContent === 'connecting…'){
+        connText.textContent = 'leaderboard slow to connect — you can still try starting';
+      }
+    }
+  }, 8000);
 
   // ---------- QUESTIONS ----------
   // 50 questions, answers verified by the user against the book.
@@ -429,8 +455,8 @@
     { q:"Who is the author of the novel?", opts:["Chimamanda Ngozi Adichie","Omolola Ijeoma Ogunyemi","Chika Unigwe","Buchi Emecheta"], correct:1 },
     { q:"How does Adaoma ultimately arrange to have a child after her first marriage ends, involving Fodo?", opts:["She adopts an orphan from Benin City","She becomes a second wife to Imma","She travels to Onitsha to consult a traditional healer","She marries Fodo (a woman) in a female-husband arrangement so Fodo can bear a child (Uchenna) with her lover Imma"], correct:3 },
     { q:"Why does the school protest escalate, and what specific action by the principal triggers the students' anger beyond the firings?", opts:["She bans all extracurricular activities","She publicly humiliates students and seizes personal items while firing beloved teachers","She forces the girls to cook jollof rice every day","She locks the dorms permanently"], correct:1 },
-    { q:"Describe the lasting emotional impact of Solape's death on Aisha across multiple stories.", opts:["Aisha feels only mild regret and quickly moves on","She blames Nonso exclusively and cuts all contact","She never mentions Solape again after leaving school","Overwhelming guilt haunts her for decades, influencing her relationships and later 
-                                                                                                           { q:"In “Last Stop, Jibowu,” what internal conflict does Nonso experience while traveling by public transport from Anioma-Ukwu toward Lagos?", opts:["She decides to become a full-time farmer","She plans to reopen the Fiditi school","She briefly contemplates stealing someone else's baby amid her own childlessness and dissatisfaction","She considers moving permanently to Poland"], correct:2 },
+    { q:"Describe the lasting emotional impact of Solape's death on Aisha across multiple stories.", opts:["Aisha feels only mild regret and quickly moves on","She blames Nonso exclusively and cuts all contact","She never mentions Solape again after leaving school","Overwhelming guilt haunts her for decades, influencing her relationships and later sacrifice"], correct:3 },
+    { q:"In “Last Stop, Jibowu,” what internal conflict does Nonso experience while traveling by public transport from Anioma-Ukwu toward Lagos?", opts:["She decides to become a full-time farmer","She plans to reopen the Fiditi school","She briefly contemplates stealing someone else's baby amid her own childlessness and dissatisfaction","She considers moving permanently to Poland"], correct:2 },
     { q:"How does Segun's early experience with police in the Bronx shape his later relationship with Remi and their family life?", opts:["It makes him refuse to have children","His trauma and support give Remi strength to confront her own family wounds","He becomes a police officer himself","He forces the family to return immediately to Nigeria"], correct:1 },
     { q:"What role does Uchenna play in connecting the ancestral story of Adaoma/Fodo to later generations?", opts:["He becomes the principal of Fiditi school","He is Solape's younger brother","He emigrates to the Bronx and meets Segun","He is the son born to Fodo (with Imma) and raised by Adaoma, linking the early story to Nonso's lineage"], correct:3 },
     { q:"In “Area Boy Rescue,” how does Blessing's perspective reveal aspects of Nonso's character and daily life in Lagos that Nonso's own narration might not?", opts:["It shows Nonso as completely helpless and poor","It reveals Nonso secretly works as an area boy","It focuses only on Nonso's childhood in Fiditi","It depicts Nonso as a powerful “madam” at a bank while also impulsive (chasing a lorry that damaged her car)"], correct:3 },
@@ -502,14 +528,27 @@
     const emailRaw = emailInput.value.trim();
     if(!isValidEmail(emailRaw)) return;
 
+    if(!firebaseReady || !boardRef){
+      lockedNotice.textContent = `Leaderboard isn't reachable right now — check your connection and try again.`;
+      lockedNotice.classList.remove('hidden');
+      return;
+    }
+
     startBtn.disabled = true;
     startBtn.textContent = 'Checking…';
 
     const key = emailToKey(emailRaw);
     currentEmailKey = key;
 
+    // Race the eligibility check against a timeout so a hung connection
+    // (very slow network) doesn't leave the button stuck on "Checking…" forever.
+    const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+
     try {
-      const snap = await boardRef.child('entries').child(key).once('value');
+      const snap = await Promise.race([
+        boardRef.child('entries').child(key).once('value'),
+        timeout(10000)
+      ]);
       if(snap.exists()){
         const prior = snap.val();
         lockedNotice.textContent = `This email already played — scored ${prior.score}/50. Each person gets one attempt.`;
@@ -520,8 +559,8 @@
         return; // blocked — do not start the quiz
       }
     } catch(err){
-      // If the check itself fails (e.g. offline), fail safe by blocking the start
-      // rather than risking a duplicate entry.
+      // If the check itself fails or times out (e.g. very slow/offline connection),
+      // fail safe by blocking the start rather than risking a duplicate entry.
       lockedNotice.textContent = `Could not verify eligibility — check your connection and try again.`;
       lockedNotice.classList.remove('hidden');
       startBtn.disabled = false;
@@ -686,38 +725,4 @@
         const div = document.createElement('div');
         div.className = 'board-row me';
         const secs = (row.timeMs/1000).toFixed(1);
-        div.innerHTML = `<span class="board-rank">#${myRank+1}</span><span class="board-name">${escapeHtml(row.name)}</span><span class="board-score">${row.score}/50 · ${secs}s</span>`;
-        boardList.appendChild(div);
-      }
-    }
-  }
-
-  function viewBoardOnly(){
-    showScreen('results');
-    document.getElementById('resultScoreBlock').classList.add('hidden');
-    document.getElementById('retryBtn').textContent = 'Back';
-    document.getElementById('boardList').innerHTML = '<div class="loader">connecting to leaderboard…</div>';
-    myEntryKey = null;
-    attachLiveBoard();
-  }
-
-  function escapeHtml(str){
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
-  }
-
-  document.getElementById('viewBoardBtn').addEventListener('click', viewBoardOnly);
-  document.getElementById('retryBtn').addEventListener('click', () => {
-    showScreen('landing');
-  });
-
-  if(window.location.hash === '#leaderboard' || window.location.hash === '#board'){
-    viewBoardOnly();
-  }
-
-})();
-</script>
-
-</body>
-</html>
+        div.innerHTML = `<span class="board-rank">#${myRank+1}</span><span class="board-name">${escapeHtml(row.name)}</span
