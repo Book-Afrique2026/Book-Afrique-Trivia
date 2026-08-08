@@ -1,7 +1,432 @@
 <!DOCTYPE html>
-<html>
-<head><title>Reddit Refugees Trivia</title></head>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Book Afrique — Jollof Rice and Other Revolutions Trivia</title>
+
+<!-- Firebase (Realtime Database) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --bg: #171310;
+    --panel: #211B17;
+    --panel-hi: #2B241F;
+    --line: #3A322A;
+    --text: #F2EBE3;
+    --muted: #9C9086;
+    --signal: #F4A340;
+    --danger: #FF6B5C;
+    --accent: #E8622C;
+  }
+
+  *{ box-sizing: border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(232,98,44,0.09), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(244,163,64,0.06), transparent 40%);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 20px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  .app{
+    width: 100%;
+    max-width: 460px;
+    min-height: 620px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    display:flex;
+    flex-direction:column;
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6);
+  }
+
+  .ticker{
+    background: #120E0B;
+    border-bottom: 1px solid var(--line);
+    padding: 7px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+  }
+  .ticker span{
+    display:inline-block;
+    padding-left: 100%;
+    animation: scroll-left 22s linear infinite;
+  }
+  @keyframes scroll-left{
+    0%{ transform: translateX(0); }
+    100%{ transform: translateX(-100%); }
+  }
+
+  .screen{ padding: 28px 26px 26px; flex:1; display:flex; flex-direction:column; }
+  .hidden{ display:none !important; }
+
+  .brand-row{ display:flex; align-items:center; gap:10px; margin-bottom: 20px; }
+  .arrow-mark{ width: 30px; height: 30px; display:flex; align-items:center; justify-content:center; }
+  .arrow-mark svg{ width:100%; height:100%; }
+  .brand-name{ font-family:'JetBrains Mono', monospace; font-size:12px; color: var(--muted); letter-spacing:1.5px; text-transform:uppercase; }
+
+  .day-badge{
+    display:inline-flex; align-items:center; gap:7px;
+    font-family:'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing:1px; text-transform:uppercase;
+    color: var(--signal);
+    background: rgba(244,163,64,0.12);
+    border: 1px solid rgba(244,163,64,0.3);
+    padding: 5px 10px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+    width: fit-content;
+  }
+  .day-badge .dd{ width:6px; height:6px; border-radius:50%; background: var(--signal); }
+
+  h1.title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: -0.3px;
+    margin-bottom: 10px;
+  }
+  .subtitle{ color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 22px; }
+
+  .field-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  input#playerName, input#playerEmail{
+    width:100%;
+    background: #120E0B;
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    padding: 13px 14px;
+    border-radius: 10px;
+    outline: none;
+    margin-bottom: 16px;
+    transition: border-color 0.15s;
+  }
+  input#playerName:focus, input#playerEmail:focus{ border-color: var(--signal); }
+  input#playerName:disabled, input#playerEmail:disabled{ opacity: 0.5; cursor: not-allowed; }
+
+  .locked-notice{
+    background: rgba(255,107,92,0.1);
+    border: 1px solid rgba(255,107,92,0.3);
+    color: var(--danger);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+  }
+
+  .btn{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    border: none;
+    border-radius: 12px;
+    padding: 15px 20px;
+    cursor: pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition: transform 0.1s ease, filter 0.15s ease;
+  }
+  .btn:active{ transform: scale(0.98); }
+  .btn-primary{ background: var(--signal); color: #2B1A02; }
+  .btn-primary:hover{ filter: brightness(1.08); }
+  .btn-primary:disabled{ background: #3A332C; color: var(--muted); cursor:not-allowed; }
+  .btn-ghost{
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    margin-top: 10px; font-size: 13px; padding: 11px 16px;
+  }
+  .btn-ghost:hover{ color: var(--text); border-color: var(--muted); }
+
+  .meta-line{
+    margin-top: auto; padding-top: 20px;
+    font-family:'JetBrains Mono', monospace;
+    font-size: 10.5px; color: var(--muted);
+    text-align:center; letter-spacing: 0.4px;
+  }
+  .meta-line a{ color: var(--signal); text-decoration:none; }
+
+  .conn-status{
+    display:flex; align-items:center; gap:6px;
+    font-family:'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .conn-dot{ width:6px; height:6px; border-radius:50%; background: var(--muted); }
+  .conn-dot.ok{ background: var(--signal); }
+  .conn-dot.bad{ background: var(--danger); }
+
+  .quiz-header{ display:flex; align-items:center; gap:14px; margin-bottom: 20px; }
+  .timer-wrap{ position: relative; width: 52px; height: 52px; flex-shrink:0; }
+  .timer-wrap svg{ transform: rotate(-90deg); width:52px; height:52px; }
+  .timer-wrap circle{ fill:none; stroke-width:4; }
+  .timer-track{ stroke: var(--line); }
+  .timer-fill{ stroke: var(--signal); stroke-linecap: round; transition: stroke-dashoffset 0.1s linear, stroke 0.2s ease; }
+  .timer-num{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono', monospace; font-weight:700; font-size:15px;
+  }
+
+  .progress-info{ flex:1; }
+  .progress-cat{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 10px; text-transform:uppercase; letter-spacing:1px;
+    margin-bottom: 5px; color: var(--signal);
+  }
+  .progress-bar-track{ height:4px; background: var(--line); border-radius:2px; overflow:hidden; }
+  .progress-bar-fill{ height:100%; background: var(--signal); border-radius:2px; transition: width 0.3s ease; }
+
+  .q-count{ font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); white-space:nowrap; }
+
+  .question-text{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600; font-size: 18px; line-height: 1.35;
+    margin-bottom: 20px; min-height: 90px;
+  }
+
+  .options{ display:flex; flex-direction:column; gap:10px; margin-bottom:auto; }
+  .option{
+    text-align:left;
+    background: var(--panel-hi);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    padding: 13px 14px;
+    border-radius: 11px;
+    cursor: pointer;
+    display:flex; align-items:center; gap:10px;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .option:hover:not(:disabled){ border-color: var(--muted); }
+  .option .opt-letter{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    width: 20px; height:20px; border-radius:5px;
+    background: rgba(255,255,255,0.04);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .option.correct{ border-color: var(--signal); background: rgba(244,163,64,0.12); }
+  .option.correct .opt-letter{ background: var(--signal); color:#2B1A02; }
+  .option.wrong{ border-color: var(--danger); background: rgba(255,107,92,0.1); }
+  .option.wrong .opt-letter{ background: var(--danger); color:#2A0808; }
+  .option:disabled{ cursor: default; }
+
+  .result-score{ text-align:center; padding: 10px 0 24px; }
+  .result-score .num{
+    font-family:'Space Grotesk', sans-serif; font-weight:700;
+    font-size: 58px; line-height:1; color: var(--signal);
+  }
+  .result-score .denom{ color: var(--muted); font-size: 20px; }
+  .result-score .label{
+    font-family:'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);
+    text-transform:uppercase; letter-spacing:1.5px; margin-top:8px;
+  }
+
+  .board-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    text-transform:uppercase; letter-spacing:1px;
+    margin-bottom:10px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .board-label .live-dot{ display:inline-flex; align-items:center; gap:5px; color: var(--signal); }
+  .board-label .live-dot .pulse{
+    width:6px; height:6px; border-radius:50%; background: var(--signal);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.3; } }
+
+  .board-list{ display:flex; flex-direction:column; gap:7px; margin-bottom: 20px; max-height: 320px; overflow-y:auto; }
+  .board-row{
+    display:flex; align-items:center; gap:10px;
+    background: var(--panel-hi);
+    border: 1px solid var(--line);
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 13.5px;
+  }
+  .board-row.me{ border-color: var(--signal); }
+  .board-rank{ font-family:'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); width:24px; flex-shrink:0; }
+  .board-name{ flex:1; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .board-score{ font-family:'JetBrains Mono', monospace; color: var(--signal); font-size:13px; }
+
+  .share-row{ display:flex; gap:8px; margin-top: 4px; }
+  .share-row .btn{ flex:1; }
+
+  .loader{
+    display:flex; align-items:center; justify-content:center;
+    flex:1; color: var(--muted); font-family:'JetBrains Mono', monospace; font-size:12px;
+  }
+</style>
+</head>
 <body>
-<h1>Reddit Refugees Trivia — coming soon</h1>
-</body>
-</html>
+
+<div class="app">
+
+  <div class="ticker"><span>JOLLOF RICE AND OTHER REVOLUTIONS &nbsp;•&nbsp; 50 QUESTIONS &nbsp;•&nbsp; 7 SECONDS EACH &nbsp;•&nbsp; NO SCROLLING BACK &nbsp;•&nbsp; GOOD LUCK &nbsp;•&nbsp; </span></div>
+
+  <!-- LANDING -->
+  <div class="screen" id="screen-landing">
+    <div class="brand-row">
+      <div class="arrow-mark">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 3L21 15H15V21H9V15H3L12 3Z" fill="#F4A340"/>
+        </svg>
+      </div>
+      <div class="brand-name">Book Afrique</div>
+    </div>
+
+    <div class="day-badge"><span class="dd"></span>ROUND 1 · 50 QUESTIONS</div>
+
+    <h1 class="title">Jollof Rice and Other Revolutions</h1>
+    <p class="subtitle">50 questions on Omolola Ijeoma Ogunyemi's novel. 7 seconds each — no scrolling back once you answer.</p>
+
+    <div class="conn-status"><span class="conn-dot" id="connDot"></span><span id="connText">connecting…</span></div>
+
+    <div class="field-label">Enter your name</div>
+    <input type="text" id="playerName" placeholder="e.g. Abiola" maxlength="24" autocomplete="off">
+    <div class="field-label">Enter your email</div>
+    <input type="email" id="playerEmail" placeholder="e.g. abiola@email.com" autocomplete="off">
+    <div id="lockedNotice" class="locked-notice hidden"></div>
+    <button class="btn btn-primary" id="startBtn" disabled>Start round →</button>
+    <button class="btn btn-ghost" id="viewBoardBtn">View leaderboard</button>
+
+    <div class="meta-line">ONE ATTEMPT PER EMAIL · ROUND TAKES ~6 MINUTES · ADD <a href="#leaderboard">#leaderboard</a> TO THIS LINK FOR A LIVE-ONLY VIEW</div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="screen hidden" id="screen-quiz">
+    <div class="quiz-header">
+      <div class="timer-wrap">
+        <svg>
+          <circle class="timer-track" cx="26" cy="26" r="22"></circle>
+          <circle class="timer-fill" id="timerFill" cx="26" cy="26" r="22"></circle>
+        </svg>
+        <div class="timer-num" id="timerNum">7</div>
+      </div>
+      <div class="progress-info">
+        <div class="progress-cat">JOLLOF RICE TRIVIA</div>
+        <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
+      </div>
+      <div class="q-count" id="qCount">1 / 50</div>
+    </div>
+
+    <div class="question-text" id="questionText">Loading question…</div>
+    <div class="options" id="optionsList"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="screen hidden" id="screen-results">
+    <div class="result-score" id="resultScoreBlock">
+      <span class="num" id="finalScore">0</span><span class="denom">/50</span>
+      <div class="label" id="resultLabel">RESULT</div>
+    </div>
+
+    <div class="board-label">
+      <span>Leaderboard</span>
+      <span class="live-dot"><span class="pulse"></span><span id="boardCount"></span></span>
+    </div>
+    <div class="board-list" id="boardList">
+      <div class="loader">connecting to leaderboard…</div>
+    </div>
+
+    <div class="share-row">
+      <button class="btn btn-ghost" id="retryBtn">Back</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+
+  // ---------- FIREBASE SETUP ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyBNlsqY1vitGE_u335CS7qPup4oHGtnLoI",
+    authDomain: "book-afrique.firebaseapp.com",
+    databaseURL: "https://book-afrique-default-rtdb.firebaseio.com",
+    projectId: "book-afrique",
+    storageBucket: "book-afrique.firebasestorage.app",
+    messagingSenderId: "235343492456",
+    appId: "1:235343492456:web:ed7c3270a920cb831d52dd"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // Separate path from the Reddit Refugees test quizzes so leaderboards never mix.
+  const BOARD_PATH = 'leaderboards/bookafrique-jollof-round1';
+  const boardRef = db.ref(BOARD_PATH);
+
+  const connDot = document.getElementById('connDot');
+  const connText = document.getElementById('connText');
+  db.ref('.info/connected').on('value', (snap) => {
+    if(snap.val() === true){
+      connDot.className = 'conn-dot ok';
+      connText.textContent = 'leaderboard connected';
+    } else {
+      connDot.className = 'conn-dot bad';
+      connText.textContent = 'connecting…';
+    }
+  });
+
+  // ---------- QUESTIONS ----------
+  // 50 questions, answers verified by the user against the book.
+  const QUESTIONS = [
+    { q:"In what year does the story “Fodo's Better Half” begin, coinciding with the British sacking of Benin City?", opts:["1885","1901","1914","1897"], correct:3 },
+    { q:"What is the name of the all-girls boarding school where Nonso, Remi, Aisha, and Solape become close friends?", opts:["Fiditi","Queen's College, Yaba","Anioma Girls' Academy","Idia House Secondary School"], correct:0 },
+    { q:"Who throws the first stone at Principal Mrs. Haastrup during the school protest?", opts:["Nonso","Aisha","Remi","Solape"], correct:1 },
+    { q:"What traditional Nigerian dish does the principal promise the protesting girls in an attempt to end the uprising?", opts:["Pounded yam and egusi","Jollof rice","Suya and plantain","Moi moi and akara"], correct:1 },
+    { q:"Name the four main friends who form a sisterhood at the boarding school.", opts:["Nonso, Remi, Fodo, and Adaoma","Aisha, Blessing, Solape, and Uchenna","Remi, Nonso, Deola, and Ife","Nonso, Remi, Aisha, and Solape"], correct:3 },
+    { q:"In which Nigerian town does Adaoma grow up?", opts:["Lagos","Ibadan","Fiditi","Anioma-Ukwu"], correct:3 },
+    { q:"What medical condition does Solape suffer from that becomes critical during the school crisis?", opts:["Asthma","Epilepsy","Diabetes","Sickle-cell anemia"], correct:0 },
+    { q:"Which character works as an investment banker in New York after attending Harvard?", opts:["Remi","Aisha","Solape","Nonso"], correct:3 },
+    { q:"Who is Remi's husband, a man of Nigerian descent who had a traumatic encounter with police in the Bronx?", opts:["Segun","Ade","Andrew","Imma"], correct:0 },
+    { q:"In what year is the final story, “messengerRNA,” set?", opts:["2030","2045","2060","2050"], correct:3 },
+    { q:"What is the name of Adaoma's first husband, the shy dancer she meets at egwu onwa?", opts:["Monye","Imma","Onochie","Uchenna"], correct:2 },
+    { q:"Which character narrates parts of her story in Nigerian Pidgin as Nonso's housegirl/housekeeper?", opts:["Deola","Blessing","Fodo","Wunmi"], correct:1 },
+    { q:"What is the name of Solape's mother, who appears in a later story dealing with grief?", opts:["Mrs. Haastrup","Fodo","Adaoma","Deola"], correct:3 },
+    { q:"To which European country does Aisha travel for a wedding in the story “Czekolada”?", opts:["Poland","France","Germany","England"], correct:0 },
+    { q:"What is the name of Aisha's granddaughter in the 2050 story?", opts:["Solape","Ife","Nonso","Remi"], correct:1 },
+    { q:"Who is the principal of the Fiditi school known for seizing students' belongings and humiliating them?", opts:["Mrs. Adenle","Mrs. Haastrup","Mrs. Rotimi","Miss Adelugba"], correct:1 },
+    { q:"In “Fodo's Better Half,” what does Adaoma's dying mother call her newborn daughter, which becomes her name?", opts:["Fodonika","Mgbolie","Adaoma","Onochie"], correct:2 },
+    { q:"Which of the four friends dies as a direct result of the school protest and its aftermath?", opts:["Solape","Aisha","Nonso","Remi"], correct:0 },
+    { q:"What is Nonso's hometown, which she returns to after years in America?", opts:["Lagos","Fiditi","Ibadan","Anioma-Ukwu"], correct:3 },
+    { q:"Name one of Remi's twin sons.", opts:["Uchenna","Dele","Imma","ThankGod"], correct:1 },
+    { q:"In the opening story, what natural event/location is a morning's walk east from Anioma-Ukwu?", opts:["The Kingdom of Benin","Lagos Lagoon","Awba Dam","The River Niger"], correct:3 },
+    { q:"What does the title “Jollof Rice and Other Revolutions” primarily refer to in the school story?", opts:["A cooking competition among the girls","A family recipe passed down from Adaoma","Aisha's favorite meal in Poland","The students' protest against the principal and the dish used as a distraction"], correct:3 },
+    { q:"Which character has a Polish immigrant husband at one point?", opts:["Nonso","Remi","Solape","Aisha"], correct:3 },
+    { q:"What historical site in Ghana does Nonso visit that deeply affects her?", opts:["Cape Coast Castle","Elmina Castle","Accra Independence Arch","Kumasi Market"], correct:1 },
+    { q:"Who is the author of the novel?", opts:["Chimamanda Ngozi Adichie","Omolola Ijeoma Ogunyemi","Chika Unigwe","Buchi Emecheta"], correct:1 },
+    { q:"How does Adaoma ultimately arrange to have a child after her first marriage ends, involving Fodo?", opts:["She adopts an orphan from Benin City","She becomes a second wife to Imma","She travels to Onitsha to consult a traditional healer","She marries Fodo (a woman) in a female-husband arrangement so Fodo can bear a child (Uchenna) with her lover Imma"], correct:3 },
+    { q:"Why does the school protest escalate, and what specific action by the principal triggers the students' anger beyond the firings?", opts:["She bans all extracurricular activities","She publicly humiliates students and seizes personal items while firing beloved teachers","She forces the girls to cook jollof rice every day","She locks the dorms permanently"], correct:1 },
+    { q:"Describe the lasting emotional impact of Solape's death on Aisha across multiple stories.", opts:["Aisha feels only mild regret and quickly moves on","She blames Nonso exclusively and cuts all contact","She never mentions Solape again after leaving school","Overwhelming guilt haunts her for decades, influencing her relationships and later 
