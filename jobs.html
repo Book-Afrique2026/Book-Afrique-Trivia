@@ -62,6 +62,21 @@
     font-family:'JetBrains Mono', monospace; font-size: 10.5px; color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
   }
+  .card-image{
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    display: block;
+    background: var(--panel-hi);
+  }
+  .card-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
   .card-text{
     font-size: 14.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
   }
@@ -154,6 +169,8 @@
       card.className = 'card';
       card.innerHTML = `
         <div class="card-date">${formatDate(entry.ts)}</div>
+        ${entry.imageUrl ? `<img class="card-image" src="${escapeHtml(entry.imageUrl)}" alt="" loading="lazy" onerror="this.style.display='none'">` : ''}
+        ${entry.title ? `<div class="card-title">${escapeHtml(entry.title)}</div>` : ''}
         <div class="card-text">${linkify(entry.text)}</div>
       `;
       cardList.appendChild(card);
