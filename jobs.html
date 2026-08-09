@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Book Afrique — Resource Board</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --bg: #171310;
+    --panel: #211B17;
+    --panel-hi: #2B241F;
+    --line: #3A322A;
+    --text: #F2EBE3;
+    --muted: #9C9086;
+    --signal: #F4A340;
+  }
+  *{ box-sizing: border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(232,98,44,0.09), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(244,163,64,0.06), transparent 40%);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100%;
+    padding: 20px;
+  }
+  .wrap{ max-width: 560px; margin: 0 auto; }
+
+  .brand-row{ display:flex; align-items:center; gap:10px; margin-bottom: 22px; }
+  .arrow-mark svg{ width:28px; height:28px; }
+  .brand-name{ font-family:'JetBrains Mono', monospace; font-size:12px; color: var(--muted); letter-spacing:1.5px; text-transform:uppercase; }
+
+  h1{
+    font-family:'Space Grotesk', sans-serif; font-weight:700;
+    font-size: 28px; margin-bottom: 8px;
+  }
+  .subtitle{ color: var(--muted); font-size: 14px; line-height:1.5; margin-bottom: 26px; }
+
+  .live-dot{ display:inline-flex; align-items:center; gap:6px; color: var(--signal);
+    font-family:'JetBrains Mono', monospace; font-size: 11px; text-transform:uppercase;
+    letter-spacing: 1px; margin-bottom: 20px;
+  }
+  .pulse{ width:6px; height:6px; border-radius:50%; background: var(--signal); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.3; } }
+
+  .card-list{ display:flex; flex-direction:column; gap: 14px; }
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .card-date{
+    font-family:'JetBrains Mono', monospace; font-size: 10.5px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+  }
+  .card-text{
+    font-size: 14.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+  }
+  .card-text a{ color: var(--signal); text-decoration: underline; }
+
+  .loader{
+    text-align:center; color: var(--muted); font-family:'JetBrains Mono', monospace;
+    font-size: 13px; padding: 40px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="brand-row">
+    <div class="arrow-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3L21 15H15V21H9V15H3L12 3Z" fill="#F4A340"/></svg>
+    </div>
+    <div class="brand-name">Book Afrique</div>
+  </div>
+
+  <h1>Resource Board</h1>
+  <p class="subtitle">Jobs, grants, and opportunities for the literary community — shared here as they hit the group.</p>
+
+  <div class="live-dot"><span class="pulse"></span>Live — updates automatically</div>
+
+  <div class="card-list" id="cardList">
+    <div class="loader">loading updates…</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyBNlsqY1vitGE_u335CS7qPup4oHGtnLoI",
+    authDomain: "book-afrique.firebaseapp.com",
+    databaseURL: "https://book-afrique-default-rtdb.firebaseio.com",
+    projectId: "book-afrique",
+    storageBucket: "book-afrique.firebasestorage.app",
+    messagingSenderId: "235343492456",
+    appId: "1:235343492456:web:ed7c3270a920cb831d52dd"
+  };
+
+  const cardList = document.getElementById('cardList');
+
+  try {
+    if(typeof firebase === 'undefined') throw new Error('Firebase did not load');
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const jobsRef = db.ref('jobs/entries');
+
+    jobsRef.on('value', (snapshot) => {
+      const data = snapshot.val() || {};
+      const entries = Object.keys(data).map(key => ({ key, ...data[key] }));
+      renderCards(entries);
+    }, (err) => {
+      cardList.innerHTML = '<div class="loader">could not load the board — check your connection</div>';
+    });
+  } catch(err){
+    cardList.innerHTML = '<div class="loader">board unreachable — check your connection and reload</div>';
+  }
+
+  function linkify(text){
+    const escaped = escapeHtml(text);
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+    return escaped.replace(urlPattern, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function formatDate(ts){
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function renderCards(entries){
+    if(entries.length === 0){
+      cardList.innerHTML = '<div class="loader">no updates posted yet — check back soon</div>';
+      return;
+    }
+    const sorted = [...entries].sort((a,b) => b.ts - a.ts);
+    cardList.innerHTML = '';
+    sorted.forEach(entry => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-date">${formatDate(entry.ts)}</div>
+        <div class="card-text">${linkify(entry.text)}</div>
+      `;
+      cardList.appendChild(card);
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
