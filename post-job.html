@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Book Afrique — Post an Update</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --bg: #171310;
+    --panel: #211B17;
+    --panel-hi: #2B241F;
+    --line: #3A322A;
+    --text: #F2EBE3;
+    --muted: #9C9086;
+    --signal: #F4A340;
+    --danger: #FF6B5C;
+  }
+  *{ box-sizing: border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100%;
+    display:flex; align-items:center; justify-content:center;
+    padding: 20px;
+  }
+  .app{
+    width: 100%; max-width: 460px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 28px 26px;
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6);
+  }
+  .brand-row{ display:flex; align-items:center; gap:10px; margin-bottom: 20px; }
+  .arrow-mark svg{ width:28px; height:28px; }
+  .brand-name{ font-family:'JetBrains Mono', monospace; font-size:12px; color: var(--muted); letter-spacing:1.5px; text-transform:uppercase; }
+  h1{
+    font-family:'Space Grotesk', sans-serif; font-weight:700;
+    font-size: 24px; margin-bottom: 8px;
+  }
+  .subtitle{ color: var(--muted); font-size: 13.5px; line-height:1.5; margin-bottom: 22px; }
+
+  .field-label{
+    font-family:'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+  }
+  input, textarea{
+    width:100%;
+    background: #120E0B;
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    padding: 13px 14px;
+    border-radius: 10px;
+    outline: none;
+    margin-bottom: 16px;
+    transition: border-color 0.15s;
+    resize: vertical;
+  }
+  textarea{ min-height: 160px; line-height: 1.5; }
+  input:focus, textarea:focus{ border-color: var(--signal); }
+
+  .btn{
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px;
+    border: none; border-radius: 12px; padding: 15px 20px; cursor: pointer;
+    width: 100%;
+    transition: transform 0.1s ease, filter 0.15s ease;
+  }
+  .btn:active{ transform: scale(0.98); }
+  .btn-primary{ background: var(--signal); color: #2B1A02; }
+  .btn-primary:disabled{ background: #3A332C; color: var(--muted); cursor:not-allowed; }
+
+  .status{
+    font-family:'JetBrains Mono', monospace; font-size: 12px; margin-top: 14px;
+    text-align: center; min-height: 16px;
+  }
+  .status.ok{ color: var(--signal); }
+  .status.err{ color: var(--danger); }
+
+  .hidden{ display:none !important; }
+  .lock-screen input{ margin-bottom: 12px; }
+  .meta-line{
+    margin-top: 18px;
+    font-family:'JetBrains Mono', monospace; font-size: 10.5px; color: var(--muted);
+    text-align:center; letter-spacing: 0.4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="brand-row">
+    <div class="arrow-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3L21 15H15V21H9V15H3L12 3Z" fill="#F4A340"/></svg>
+    </div>
+    <div class="brand-name">Book Afrique</div>
+  </div>
+
+  <!-- LOCK SCREEN -->
+  <div id="lockScreen">
+    <h1>Resource Board — Admin</h1>
+    <p class="subtitle">Enter the admin password to post an update.</p>
+    <input type="password" id="passwordInput" placeholder="Password" autocomplete="off">
+    <button class="btn btn-primary" id="unlockBtn">Unlock</button>
+    <div class="status" id="lockStatus"></div>
+  </div>
+
+  <!-- POST FORM -->
+  <div id="postScreen" class="hidden">
+    <h1>Post an Update</h1>
+    <p class="subtitle">Paste the full WhatsApp or reshared Instagram message below, link and all — it'll show up on the board exactly as pasted, with any link made clickable automatically.</p>
+
+    <div class="field-label">Message</div>
+    <textarea id="messageInput" placeholder="Paste the job/opportunity message here, including the link..."></textarea>
+
+    <button class="btn btn-primary" id="postBtn">Post to board →</button>
+    <div class="status" id="postStatus"></div>
+
+    <div class="meta-line">POSTS APPEAR INSTANTLY ON THE PUBLIC BOARD</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyBNlsqY1vitGE_u335CS7qPup4oHGtnLoI",
+    authDomain: "book-afrique.firebaseapp.com",
+    databaseURL: "https://book-afrique-default-rtdb.firebaseio.com",
+    projectId: "book-afrique",
+    storageBucket: "book-afrique.firebasestorage.app",
+    messagingSenderId: "235343492456",
+    appId: "1:235343492456:web:ed7c3270a920cb831d52dd"
+  };
+
+  // ⚠️ Light deterrent only, not real security — this password is visible to
+  // anyone who views the page source. Fine for keeping casual randoms out of
+  // your own admin page; not a substitute for real auth if that's ever needed.
+  const ADMIN_PASSWORD = "bookafrique2026";
+
+  let db = null, jobsRef = null, firebaseReady = false;
+
+  try {
+    if(typeof firebase === 'undefined') throw new Error('Firebase did not load');
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    jobsRef = db.ref('jobs/entries');
+    firebaseReady = true;
+  } catch(err){
+    console.error(err);
+  }
+
+  const lockScreen = document.getElementById('lockScreen');
+  const postScreen = document.getElementById('postScreen');
+  const passwordInput = document.getElementById('passwordInput');
+  const unlockBtn = document.getElementById('unlockBtn');
+  const lockStatus = document.getElementById('lockStatus');
+  const messageInput = document.getElementById('messageInput');
+  const postBtn = document.getElementById('postBtn');
+  const postStatus = document.getElementById('postStatus');
+
+  function unlock(){
+    if(passwordInput.value === ADMIN_PASSWORD){
+      lockScreen.classList.add('hidden');
+      postScreen.classList.remove('hidden');
+    } else {
+      lockStatus.textContent = 'Incorrect password';
+      lockStatus.className = 'status err';
+    }
+  }
+  unlockBtn.addEventListener('click', unlock);
+  passwordInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') unlock(); });
+
+  async function postUpdate(){
+    const text = messageInput.value.trim();
+    if(!text){
+      postStatus.textContent = 'Paste a message first';
+      postStatus.className = 'status err';
+      return;
+    }
+    if(!firebaseReady || !jobsRef){
+      postStatus.textContent = 'Not connected — check your internet connection';
+      postStatus.className = 'status err';
+      return;
+    }
+
+    postBtn.disabled = true;
+    postBtn.textContent = 'Posting…';
+
+    try {
+      await jobsRef.push({ text: text, ts: Date.now() });
+      messageInput.value = '';
+      postStatus.textContent = 'Posted! It\'s live on the board now.';
+      postStatus.className = 'status ok';
+    } catch(err){
+      postStatus.textContent = 'Could not post — check your connection and try again';
+      postStatus.className = 'status err';
+    } finally {
+      postBtn.disabled = false;
+      postBtn.textContent = 'Post to board →';
+    }
+  }
+  postBtn.addEventListener('click', postUpdate);
+
+})();
+</script>
+
+</body>
+  </html>
